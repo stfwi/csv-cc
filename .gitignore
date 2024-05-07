@@ -1,0 +1,10 @@
+*.tmp
+*.o
+.DS_Store
+Thumbs.db
+Desktop.ini
+nbproject
+*.exe
+*.elf
+/build
+/test/xxx*
