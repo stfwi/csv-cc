@@ -1,0 +1,26 @@
+name: Code Analysis
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+
+  code-analysis:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out \"${{ github.repository }}\", branch \"${{ github.ref }}\."
+        uses: actions/checkout@v4
+      - name: make code-analysis
+        run: make code-analysis CI=1
+
+  code-format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out \"${{ github.repository }}\", branch \"${{ github.ref }}\."
+        uses: actions/checkout@v4
+      - name: make format-check
+        run: make format-check CI=1

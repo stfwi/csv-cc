@@ -1,0 +1,30 @@
+name: CI Test
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+
+  test-linux-gcc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compiler version
+        run: g++ --version
+      - name: Check out \"${{ github.repository }}\", branch \"${{ github.ref }}\."
+        uses: actions/checkout@v4
+      - name: make test-all
+        run: make test-all CI=1 CXX=g++
+
+  test-linux-clang:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compiler version
+        run: clang++ --version
+      - name: Check out \"${{ github.repository }}\", branch \"${{ github.ref }}\."
+        uses: actions/checkout@v4
+      - name: make test
+        run: make -j test BUILD_DIRECTORY=build/std17 CXX_STD=c++17 CXX=clang++ CI=1
