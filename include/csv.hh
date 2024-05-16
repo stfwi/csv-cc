@@ -55,9 +55,9 @@ namespace csv { namespace {
      * reading.
      */
     template<
-      size_t ReadBufferSizeKb,      // File reading chunk size.
-      typename StringType,          // String type used, @concept: must be std::string like.
-      typename StringContainerType  // Container<String> type used, @concept: must be ramdom access and StringType as value_type.
+      size_t ReadBufferSizeKb,          // File reading chunk size.
+      typename StringType,              // String type used, @concept: must be std::string like.
+      typename StringViewContainerType  // Container<StringView> type used, @concept: must be ramdom access and a view to StringType as value_type.
     >
     class basic_parser
     {
@@ -66,8 +66,8 @@ namespace csv { namespace {
       using string_type = StringType;
       using char_type = typename string_type::value_type;
       using string_view_type = std::basic_string_view<char_type>;
-      using string_container_type = StringContainerType;
-      using row_handler_type = std::function<void(const string_container_type& fields, size_t line_no)>;
+      using string_view_container_type = StringViewContainerType;
+      using row_handler_type = std::function<void(const string_view_container_type& fields, size_t line_no)>;
 
       static constexpr size_t read_buffer_size_kb = ReadBufferSizeKb;
 
@@ -98,14 +98,15 @@ namespace csv { namespace {
         delimiter_(csv_delimiter),
         header_comment_chars_(header_comment_characters),
         trim_chars_(trim_characters),
-        current_line_(),
+        current_record_(),
+        buffer_(),
         current_field_(),
         line_no_(),
         n_rows_()
       {
         // Support for < c++20: Explicit checks, no use of concepts yet:
-        static_assert(std::is_same<string_type, typename string_container_type::value_type>::value, "StringContainerType has to have StringType as elements.");
-        static_assert(std::is_default_constructible<string_container_type>::value, "StringContainerType must be a default-constructible dynamic sized container.");
+        static_assert(std::is_same<string_view_type, typename string_view_container_type::value_type>::value, "StringContainerType has to have StringType as elements.");
+        static_assert(std::is_default_constructible<string_view_container_type>::value, "StringContainerType must be a default-constructible dynamic sized container.");
         // Also: wstring not needed by anyone, string with custom allocator maybe:
         static_assert(std::is_same<char, char_type>::value, "wstring not supported. Widen/narrow in your code.");
       }
@@ -120,8 +121,9 @@ namespace csv { namespace {
        */
       basic_parser& clear()
       {
-        current_line_ = string_container_type(),
-        current_field_ = string_type(),
+        current_record_ = string_view_container_type();
+        buffer_ = string_type();
+        current_field_ = string_range();
         line_no_ = 0;
         n_rows_ = 0;
         return *this;
@@ -215,7 +217,7 @@ namespace csv { namespace {
         };
 
         const auto consume = [&](){
-          current_field_.push_back(*cursor);
+          buffer_.push_back(*cursor);
           return skip();
         };
 
@@ -257,31 +259,38 @@ namespace csv { namespace {
           }
         };
 
-        const auto trim_field = [&](string& s) -> void {
-          if(trim_chars_.empty() || s.empty()) return;
+        const auto trim_field = [&](string_view_type s) -> string_view_type {
+          if(trim_chars_.empty() || s.empty()) { return s; }
           const auto npos = s.npos;
           auto epos = s.size();
-          auto spos = string::size_type(0);
+          auto spos = typename string_view_type::size_type(0);
           while((epos > 0) && trim_chars_.find(s[epos-1]) != npos) --epos;
           while((spos < epos) && trim_chars_.find(s[spos]) != npos) ++spos;
           if((spos == 0) && (epos == s.size())) {
-            return;
+            return s;
+          } else if(epos <= spos) {
+            return string_view_type("", 0);
+          } else {
+            return string_view_type(&s[spos], epos-spos);
           }
-          if(epos <= spos) {
-            s.clear();
-            return;
-          }
-          s.erase(s.begin(), s.begin()+string::difference_type(spos));
-          s.resize(epos-spos);
+        };
+
+        const auto push_field = [&](){
+          current_field_.end = buffer_.size();
+          fields_.emplace_back(current_field_);
+          current_field_.start = current_field_.end;
         };
 
         const auto finish_line = [&](){
-          if(current_field_.empty() && current_line_.empty()) return false;
-          trim_field(current_field_);
-          current_line_.emplace_back();
-          current_line_.back().swap(current_field_);
-          row_handler_(current_line_, line_no_);
-          current_line_.clear();
+          const auto rsize = buffer_.size();
+          if(((rsize==0) || (current_field_.start >= rsize)) && fields_.empty()) return false;
+          push_field();
+          for(const auto& e:fields_) current_record_.push_back(trim_field(string_view_type(&buffer_[e.start], e.end-e.start)));
+          row_handler_(current_record_, line_no_);
+          current_record_.clear();
+          fields_.clear();
+          buffer_.clear();
+          current_field_ = string_range();
           ++n_rows_;
           return true;
         };
@@ -292,9 +301,7 @@ namespace csv { namespace {
           const auto c = peek();
           if(c == delimiter_) {
             skip();
-            trim_field(current_field_);
-            current_line_.emplace_back();
-            current_field_.swap(current_line_.back());
+            push_field();
           } else if((c == '\r') || (c == '\n')) {
             const auto cn = skip(); // RFC4180 specifies \r\n, but we accept CR, LF, or CRLF as newline.
             if((c == '\r') && (cn == '\n')) skip();
@@ -313,13 +320,17 @@ namespace csv { namespace {
 
     private:
 
+      struct string_range { typename string_type::size_type start; typename string_type::size_type end; };
+
       const row_handler_type row_handler_;          // Function invoked for each CSV row.
       const char_type delimiter_;                   // The CSV separator character.
       const string_type header_comment_chars_;      // Leading lines starting with one of the characters in the string will be ignored.
       const string_type trim_chars_;                // Characters to be trimmed off at the start and end of each field.
 
-      string_container_type current_line_;          // Internal state: Fields registered so far for the current CSV line.
-      string_type current_field_;                   // Internal state: Currently unfinished field characters.
+      string_view_container_type current_record_;   // Internal state: Container passed to `row_handler_`, only re-allocated on size increase.
+      std::vector<string_range> fields_;            // Internal state: Fields registered so far for the current CSV line.
+      string_type buffer_;                          // Internal state: Currently unfinished record character buffer.
+      string_range current_field_;                  // Internal state: Start position of the current field in the `buffer_`.
       size_t line_no_;                              // Internal state: Current line number in the CSV file.
       size_t n_rows_;                               // Internal state: Number of data rows parser so far.
     };
@@ -329,7 +340,7 @@ namespace csv { namespace {
   /**
    * CSV parser default specialization.
    */
-  using csv_parser = detail::basic_parser<1024, std::string, std::vector<std::string>>; // NOLINT Default: byte string, 1MB file reading buffer cap.
+  using csv_parser = detail::basic_parser<1024, std::string, std::vector<std::string_view>>; // NOLINT Default: byte string, 1MB file reading buffer cap.
 
 }}
 

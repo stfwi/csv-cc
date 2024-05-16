@@ -21,14 +21,14 @@ void test_parse_cmpfile(
   const std::string_view comment_chars,
   const std::string_view trim_chars)
 {
-  test_info("Checking against ", path);
+  test_info("-------- Checking against ", path, "------------");
   test_note(
     "Delimiter: '" << delim << "', header-comment-chars: '" << comment_chars << "', trim-chars: '" << trim_chars
                    << "'");
 
   auto parsed_lines = std::stringstream();
 
-  const auto row_proc = [&](const std::vector<std::string>& fields, size_t line_no) {
+  const auto row_proc = [&](const std::vector<std::string_view>& fields, size_t line_no) {
     parsed_lines << te::csv_escape_joined_row_fields(fields, line_no) << '\n';
   };
 
@@ -42,15 +42,15 @@ void test_parse_cmpfile(
     return trimmed(std::string((std::istreambuf_iterator<char>(fis)), std::istreambuf_iterator<char>()));
   };
 
-  test_expect_noexcept(csv::csv_parser(row_proc, delim, comment_chars, trim_chars).parse_file(path));
-  test_note("-- file:" << path << "\n" << parsed_lines.str());
-
   const auto check_file = path.string() + ".txt";
   const auto check_file_contents = file_contents(check_file);
+  test_note("### checkfile: " << check_file << "\n" << check_file_contents);
   test_expect(!check_file_contents.empty());
-  if(!test_expect_cond(trimmed(parsed_lines.str()) == check_file_contents)) {
-    test_note("-- checkfile: " << check_file << "\n" << check_file_contents);
-  }
+
+  test_expect_noexcept(csv::csv_parser(row_proc, delim, comment_chars, trim_chars).parse_file(path));
+  test_note("### file:" << path << " parsed lines:\n" << parsed_lines.str());
+
+  test_expect(trimmed(parsed_lines.str()) == check_file_contents);
 }
 
 void test_parse_cmpfile_all(
@@ -73,7 +73,7 @@ void test_fopen_error()
 {
   test_info("Checking file-open exception ...");
   static volatile int nop_i = 0;
-  const auto row_proc = [&](const std::vector<std::string>&, size_t) { nop_i = nop_i + 1; };
+  const auto row_proc = [&](const std::vector<std::string_view>&, size_t) { nop_i = nop_i + 1; };
   const auto nonexistent_path = "./no-such-file-or-directory.csv";
   test_expect(!std::filesystem::exists(nonexistent_path));
   test_expect_except(csv::csv_parser(row_proc).parse_file(nonexistent_path));
@@ -86,7 +86,7 @@ void test_parse_string_stop_at_nulchar()
   auto fields_crammed = std::string();
   auto fields_input = std::string("1,2,3\n4,5,6\r\n,7,8,9\tN,O,T\n");
   std::replace(fields_input.begin(), fields_input.end(), '\t', '\0');
-  const auto row_proc = [&](const std::vector<std::string>& fields, size_t) {
+  const auto row_proc = [&](const std::vector<std::string_view>& fields, size_t) {
     num_rows = num_rows + 1;
     for(const auto& col: fields) fields_crammed += col;
   };

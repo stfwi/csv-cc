@@ -27,7 +27,7 @@
 
 namespace te { namespace {
 
-  inline std::string csv_escape_joined_row_fields(const std::vector<std::string>& fields, size_t line_no)
+  inline std::string csv_escape_joined_row_fields(const std::vector<std::string_view>& fields, size_t line_no)
   {
     auto s = std::to_string(int(line_no)) + " [";
     for(auto& field: fields) {

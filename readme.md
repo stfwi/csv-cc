@@ -43,7 +43,7 @@ void parser_example()
 {
   // Your processing function for each parsed row, re-used in multiple
   // blocks below.
-  const auto row_processor = [&](const std::vector<std::string>& fields, size_t line_no) {
+  const auto row_processor = [&](const std::vector<std::string_view>& fields, size_t line_no) {
     std::cout << "[" << int(line_no) << "]";
     for(const auto& field: fields) std::cout << " | " << field;
     std::cout << "\n";
@@ -138,6 +138,12 @@ The `csv_parser` implements the following RFC4180 aspects:
 
   - Field quote escape sequence is `""`, e.g. `"a""aa","bbb"`.
 
+  - Field quotes that are not directly following the delimiter are
+    interpreted as normal characters. (`...,"b"` is a quoted `b`, but
+    `..., "b"` is an unquoted ` "b"`). Trimming does not apply to
+    this quoting rule. This shall handle inconsistencies stated in
+    RFC4180 rule 2.5.
+
   - Newlines (`\n`, or `\r`) in quoted fields are part of the record.
 
   - (CSV header data can be handled in the row-processor function).
@@ -156,12 +162,12 @@ Performance considerations:
     template:
 
     ```c++
-    using parser128kb = csv::detail::basic_parser<128, std::string, std::vector<std::string>>;
+    using parser128kb = csv::detail::basic_parser<128, std::string, std::vector<std::string_view>>;
     ```
 
   - Parsing performance: Although allocations are circumvented as good as
     possible, additional performance optimization can be done by replacing
-    the `std::string` and `std::vector<std::string>` above with an own
+    the `std::string` and `std::vector<std::string_view>` above with an own
     string type with pool allocator - if needed.
 
   - For performance tests on your machine, you can use the test

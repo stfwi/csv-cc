@@ -32,7 +32,7 @@ double test_perf_cycle(std::filesystem::path path)
   using namespace std;
 
   auto accumulated_content_length = size_t(0);
-  const auto read_fields = [&](const std::vector<std::string>& fields, size_t line_no) {
+  const auto read_fields = [&](const std::vector<std::string_view>& fields, size_t line_no) {
     for(const auto& s: fields) accumulated_content_length += s.size();
     (void)line_no;
   };

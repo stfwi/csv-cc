@@ -79,7 +79,7 @@ namespace {
    * Auxiliary function to dump a CSV line with
    * C-style escaped string data.
    */
-  void dump_fields(const std::vector<std::string>& fields, size_t line_no)
+  void dump_fields(const std::vector<std::string_view>& fields, size_t line_no)
   {
     auto& os = std::cout;
     os << "[" << std::setw(3) << int(line_no) << "] :";
@@ -214,7 +214,7 @@ namespace {
     auto location_column = not_found_index;
 
     // Row processing function, called for each parsed data row.
-    const auto row_processor = [&](const vector<string>& fields, size_t line_no) {
+    const auto row_processor = [&](const vector<string_view>& fields, size_t line_no) {
       if(num_cols > 0) {
         // Data columns
         if(fields.size() != num_cols) {
