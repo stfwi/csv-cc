@@ -44,7 +44,7 @@
 /**
  * CSV parsing.
  */
-namespace csv { namespace {
+namespace csv {
 
   namespace detail {
 
@@ -83,13 +83,15 @@ namespace csv { namespace {
       /**
        * CSV parser constructor (the only allowed one).
        *
-       * @param on_row Function invoked for each CSV row.
+       * @tparam typename RowHandler
+       * @param const RowHandler& on_row Function invoked for each CSV row.
        * @param [csv_delimiter] The CSV separator character.
        * @param [header_comment_characters] Leading lines starting with one of the characters in the string will be ignored.
        * @param [trim_characters] Characters to be trimmed off at the start and end of each field (CSV entry). Whitespaces are often trimmed.
        */
+      template<typename RowHandler>
       explicit basic_parser(
-        const row_handler_type on_row,
+        const RowHandler& on_row,
         const char_type csv_delimiter = ',',
         const string_view_type header_comment_characters = string_view_type(""),
         const string_view_type trim_characters = string_view_type("")
@@ -269,7 +271,7 @@ namespace csv { namespace {
           if((spos == 0) && (epos == s.size())) {
             return s;
           } else if(epos <= spos) {
-            return string_view_type("", 0);
+            return string_view_type();
           } else {
             return string_view_type(&s[spos], epos-spos);
           }
@@ -342,13 +344,13 @@ namespace csv { namespace {
    */
   using csv_parser = detail::basic_parser<1024, std::string, std::vector<std::string_view>>; // NOLINT Default: byte string, 1MB file reading buffer cap.
 
-}}
+}
 
 
 /**
  * CSV composing.
  */
-namespace csv { namespace {
+namespace csv {
 
   namespace detail {
 
@@ -383,12 +385,14 @@ namespace csv { namespace {
       /**
        * CSV composer constructor.
        *
-       * @param const row_handler_type on_row Invoked for every composed line. Use it to output the line.
+       * @tparam RowHandler
+       * @param const RowHandler& on_row Invoked for every composed line. Use it to output the line.
        * @param const char_type [csv_delimiter] The CSV separator character.
        * @param const string_view_type [newline_seq] Character sequence used for line breaks.
        */
+      template<typename RowHandler>
       explicit basic_composer(
-        const row_handler_type on_row,
+        const RowHandler& on_row,
         const char_type csv_delimiter = char_type(','),
         const string_view_type newline_seq = string_view_type("\r\n")
       ) :
@@ -555,7 +559,7 @@ namespace csv { namespace {
    */
   using csv_composer = detail::basic_composer<std::string, std::vector<int>>; // NOLINT Default: byte string, 1MB file reading buffer cap.
 
-}}
+}
 
 
 // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)

@@ -26,8 +26,7 @@ namespace {
   template<typename T>
   bool to_number(const std::string_view s, T& value)
   {
-    const auto end = s.data() + s.size();
-    const auto [p, e] = std::from_chars(s.data(), end, value);
+    const auto [p, e] = std::from_chars(s.begin(), s.end(), value);
     (void)p;
     return (e == std::errc());
   };

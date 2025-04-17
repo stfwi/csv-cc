@@ -25,7 +25,7 @@
 #include <filesystem>
 
 
-namespace te { namespace {
+namespace te {
 
   inline std::string csv_escape_joined_row_fields(const std::vector<std::string_view>& fields, size_t line_no)
   {
@@ -162,11 +162,11 @@ namespace te { namespace {
       rand_csv_file_stream.write(rnd_row_chunk.data(), std::streamsize(rnd_row_chunk.size()));
     }
 
-    const auto fsz = std::round(double(std::filesystem::file_size(path))/(1024*1024/10)) / 10;
+    const auto fsz = std::round(double(std::filesystem::file_size(path))/1024.*1024./10.) / 10;
     test_info("Created test CSV file ", path, " has ", n_lines, " data lines, total size: ", fsz, "MB.");
-    return path;
+    return path; // NOLINT: Forget it, I don't give up const correctness for move-out. Optimizer, your turn.
   }
 
-}}
+}
 
 #endif

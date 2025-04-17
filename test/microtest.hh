@@ -165,6 +165,7 @@
 // NOLINTBEGIN(*-global-variables, *-magic-numbers, *-macro-usage, *-avoid-c-arrays, *-pointer-arithmetic, *-pro-bounds-constant-array-index, *-to-pointer-decay)
 #ifndef SW_MICROTEST_HH
 #define SW_MICROTEST_HH
+#pragma GCC system_header
 
 #include <sstream>
 #include <iostream>
